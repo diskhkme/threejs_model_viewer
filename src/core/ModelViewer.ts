@@ -1,18 +1,28 @@
 import * as THREE from "three";
 import Stats from "three/addons/libs/stats.module.js";
+import { GUI } from "three/addons/libs/lil-gui.module.min.js";
 import { SceneManager } from "./SceneManager";
 import { ControlsManager } from "./ControlsManager";
 import { ModelLoader, LoaderCallbacks } from "../loaders/ModelLoader";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 import { TestControls } from "../components/TestControls";
 import { MessageHandler } from "../utils/MessageHandler";
+import { ViewCube } from "../components/ViewCube";
+import { StandardViewButtons } from "../components/StandardViewButtons";
+import { GridAndAxes } from "../components/GridAndAxes";
+import { ModelInfoPanel } from "../components/ModelInfoPanel";
 
 export class ModelViewer {
   private sceneManager: SceneManager;
   private controlsManager: ControlsManager;
   private loadingIndicator: LoadingIndicator;
   private messageHandler: MessageHandler;
+  private viewCube: ViewCube;
+  private standardViewButtons: StandardViewButtons;
+  private gridAndAxes: GridAndAxes;
+  private modelInfoPanel: ModelInfoPanel;
   private stats: Stats;
+  private gui: GUI;
   private currentModel: THREE.Object3D | null = null;
 
   constructor() {
@@ -35,12 +45,56 @@ export class ModelViewer {
     // 테스트 컨트롤 초기화
     new TestControls();
 
+    // 뷰 큐브 초기화
+    this.viewCube = new ViewCube(
+      this.sceneManager.getCamera(),
+      this.controlsManager.getControls()
+    );
+
+    // 표준 뷰 버튼 초기화
+    this.standardViewButtons = new StandardViewButtons(
+      this.sceneManager.getCamera(),
+      this.controlsManager.getControls()
+    );
+
+    // 그리드 및 축 초기화
+    this.gridAndAxes = new GridAndAxes(this.sceneManager.getScene());
+
+    // 모델 정보 패널 초기화
+    this.modelInfoPanel = new ModelInfoPanel();
+
     // Stats 초기화
     this.stats = new Stats();
     document.body.appendChild(this.stats.dom);
 
+    // GUI 초기화
+    this.gui = new GUI();
+    this.setupGUI();
+
     // 애니메이션 시작
     this.animate();
+  }
+
+  private setupGUI(): void {
+    const viewFolder = this.gui.addFolder("뷰 설정");
+
+    // 그리드 표시 설정
+    const viewSettings = {
+      showGrid: true,
+      backgroundColor: "#f0f0f0",
+    };
+
+    viewFolder.add(viewSettings, "showGrid").onChange((value: boolean) => {
+      this.gridAndAxes.setVisible(value);
+    });
+
+    viewFolder
+      .addColor(viewSettings, "backgroundColor")
+      .onChange((value: string) => {
+        this.sceneManager.getScene().background = new THREE.Color(value);
+      });
+
+    viewFolder.open();
   }
 
   public loadModel(url: string): void {
@@ -73,12 +127,14 @@ export class ModelViewer {
 
         // 카메라 위치 조정
         const maxDim = Math.max(size.x, size.y, size.z);
-        const camera = this.sceneManager.getCamera();
-        camera.position.z = maxDim * 2;
-        camera.lookAt(new THREE.Vector3(0, 0, 0));
+        this.sceneManager.setViewportSize(maxDim * 2.5);
 
         // 컨트롤 타겟 업데이트
         this.controlsManager.setTarget(0, 0, 0);
+
+        // 모델 정보 패널 업데이트
+        const fileName = url.split("/").pop() || "Unknown";
+        this.modelInfoPanel.updateModelInfo(model, fileName);
 
         // 로더 숨기기
         this.loadingIndicator.hide();
