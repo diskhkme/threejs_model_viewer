@@ -1,0 +1,48 @@
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+export interface LoaderCallbacks {
+  onLoad: (model: THREE.Object3D) => void;
+  onProgress?: (percentage: number) => void;
+  onError?: (error: any) => void;
+}
+
+export class ModelLoader {
+  private static getSupportedExtension(url: string): string {
+    return url.split(".").pop()?.toLowerCase() || "";
+  }
+
+  public static loadModel(url: string, callbacks: LoaderCallbacks): void {
+    const extension = this.getSupportedExtension(url);
+
+    if (extension === "glb" || extension === "gltf") {
+      this.loadGLTF(url, callbacks);
+    } else {
+      if (callbacks.onError) {
+        callbacks.onError(`지원하지 않는 파일 형식: ${extension}`);
+      }
+    }
+  }
+
+  private static loadGLTF(url: string, callbacks: LoaderCallbacks): void {
+    const loader = new GLTFLoader();
+
+    loader.load(
+      url,
+      (gltf) => {
+        callbacks.onLoad(gltf.scene);
+      },
+      (xhr) => {
+        if (xhr.lengthComputable && callbacks.onProgress) {
+          const percentage = Math.floor((xhr.loaded / xhr.total) * 100);
+          callbacks.onProgress(percentage);
+        }
+      },
+      (error) => {
+        if (callbacks.onError) {
+          callbacks.onError(error);
+        }
+      }
+    );
+  }
+}
