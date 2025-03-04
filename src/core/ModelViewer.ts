@@ -23,7 +23,8 @@ export class ModelViewer {
   private modelInfoPanel: ModelInfoPanel;
   private stats: Stats;
   private gui: GUI;
-  private currentModel: THREE.Object3D | null = null;
+  private currentModelUUID: string | null = null;
+  private models: Map<string, string> = new Map(); // key: modelId, value: UUID
 
   constructor() {
     // 씬 매니저 초기화
@@ -100,7 +101,7 @@ export class ModelViewer {
     viewFolder.open();
   }
 
-  public loadModel(url: string): void {
+  public loadModel(url: string, modelId: string): void {
     if (!url) {
       console.warn("모델 URL이 제공되지 않았습니다.");
       return;
@@ -110,14 +111,17 @@ export class ModelViewer {
     this.loadingIndicator.show();
 
     // 기존 모델 제거
-    if (this.currentModel) {
-      this.sceneManager.getScene().remove(this.currentModel);
-      this.currentModel = null;
-    }
+    this.unloadModel(modelId);
 
     const callbacks: LoaderCallbacks = {
       onLoad: (model) => {
-        this.currentModel = model;
+        // 모델에 식별자 설정
+        model.name = "currentModel";
+        model.userData.type = "mainModel";
+
+        // UUID 저장
+        this.models.set(modelId, model.uuid);
+
         this.sceneManager.getScene().add(model);
 
         // 모델 경계 상자 계산
@@ -163,25 +167,34 @@ export class ModelViewer {
     ModelLoader.loadModel(url, callbacks);
   }
 
-  // 모델 언로드 메서드 추가
-  public unloadModel(): void {
-    if (this.currentModel) {
-      this.sceneManager.getScene().remove(this.currentModel);
-      this.currentModel = null;
+  public unloadModel(modelId: string): void {
+    const uuid = this.models.get(modelId);
+    if (uuid) {
+      const model = this.sceneManager
+        .getScene()
+        .getObjectByProperty("uuid", uuid);
 
-      // 메모리 정리
-      if (this.currentModel instanceof THREE.Mesh) {
-        if (this.currentModel.geometry) {
-          this.currentModel.geometry.dispose();
-        }
-        if (Array.isArray(this.currentModel.material)) {
-          this.currentModel.material.forEach((material) => material.dispose());
-        } else if (this.currentModel.material) {
-          this.currentModel.material.dispose();
-        }
+      if (model) {
+        // 재귀적으로 모든 자식 객체의 리소스 정리
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            if (child.geometry) {
+              child.geometry.dispose();
+            }
+
+            if (Array.isArray(child.material)) {
+              child.material.forEach((material) => material.dispose());
+            } else if (child.material) {
+              child.material.dispose();
+            }
+          }
+        });
+
+        // 씬에서 제거
+        this.sceneManager.getScene().remove(model);
       }
 
-      // 부모 프레임에 언로드 완료 알림
+      this.models.delete(modelId);
       this.messageHandler.sendModelUnloadedMessage();
     }
   }
