@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8" />
     <title>CAD Viewer Test</title>
     <style>
       body {
@@ -19,10 +20,8 @@
   </head>
   <body>
     <div id="test-controls">
-      <button onclick="loadModel('/test_models/Duck.glb')">
-        Duck 모델 로드
-      </button>
-      <button onclick="loadModel('/test_models/Box.glb')">Box 모델 로드</button>
+      <button onclick="loadModel('/test_models/Duck.glb')">Duck 로드</button>
+      <button onclick="loadModel('/test_models/Box.glb')">Box 로드</button>
     </div>
 
     <iframe id="viewer-container" src="/"></iframe>
