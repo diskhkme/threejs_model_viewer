@@ -1,14 +1,11 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 export class StandardViewButtons {
   private container: HTMLElement;
   private camera: THREE.Camera;
-  private controls: OrbitControls;
 
-  constructor(camera: THREE.Camera, controls: OrbitControls) {
+  constructor(camera: THREE.Camera) {
     this.camera = camera;
-    this.controls = controls;
 
     // 컨테이너 생성
     this.container = document.createElement("div");
@@ -87,7 +84,5 @@ export class StandardViewButtons {
   private setCameraPosition(x: number, y: number, z: number): void {
     this.camera.position.set(x, y, z);
     this.camera.lookAt(0, 0, 0);
-    this.controls.target.set(0, 0, 0);
-    this.controls.update();
   }
 }

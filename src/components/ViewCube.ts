@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 export class ViewCube {
   private scene: THREE.Scene;
@@ -7,15 +6,11 @@ export class ViewCube {
   private renderer: THREE.WebGLRenderer;
   private axesHelper!: THREE.AxesHelper;
   private axesLabels: THREE.Sprite[] = [];
-  private raycaster: THREE.Raycaster;
-  private mouse: THREE.Vector2;
   private mainCamera: THREE.Camera;
-  private mainControls: OrbitControls;
   private cameraDistance: number = 3.5;
 
-  constructor(mainCamera: THREE.Camera, mainControls: OrbitControls) {
+  constructor(mainCamera: THREE.Camera) {
     this.mainCamera = mainCamera;
-    this.mainControls = mainControls;
 
     // 뷰 큐브 씬 설정
     this.scene = new THREE.Scene();
@@ -46,10 +41,6 @@ export class ViewCube {
 
     // 큐브 대신 축 생성
     this.createAxes();
-
-    // 레이캐스터 설정
-    this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2();
 
     // 애니메이션
     this.animate();

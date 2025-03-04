@@ -19,7 +19,7 @@ export class ModelViewer {
   private loadingIndicator: LoadingIndicator;
   private messageHandler: MessageHandler;
   private viewCube: ViewCube;
-  private standardViewButtons: StandardViewButtons;
+  private readonly standardViewButtons: StandardViewButtons;
   private gridAndAxes: GridAndAxes;
   private modelInfoPanel: ModelInfoPanel;
   private stats: Stats;
@@ -48,15 +48,11 @@ export class ModelViewer {
     );
 
     // 뷰 큐브 초기화
-    this.viewCube = new ViewCube(
-      this.sceneManager.getCamera(),
-      this.controlsManager.getControls()
-    );
+    this.viewCube = new ViewCube(this.sceneManager.getCamera());
 
     // 표준 뷰 버튼 초기화
     this.standardViewButtons = new StandardViewButtons(
-      this.sceneManager.getCamera(),
-      this.controlsManager.getControls()
+      this.sceneManager.getCamera()
     );
 
     // 그리드 및 축 초기화
@@ -205,6 +201,7 @@ export class ModelViewer {
   private animate(): void {
     requestAnimationFrame(this.animate.bind(this));
     this.controlsManager.update();
+    this.viewCube.update();
     this.sceneManager.render();
     this.stats.update();
   }
