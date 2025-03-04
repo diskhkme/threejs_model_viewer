@@ -5,11 +5,13 @@ export class ViewCube {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
-  private cube!: THREE.Mesh;
+  private axesHelper!: THREE.AxesHelper;
+  private axesLabels: THREE.Sprite[] = [];
   private raycaster: THREE.Raycaster;
   private mouse: THREE.Vector2;
   private mainCamera: THREE.Camera;
   private mainControls: OrbitControls;
+  private cameraDistance: number = 3.5;
 
   constructor(mainCamera: THREE.Camera, mainControls: OrbitControls) {
     this.mainCamera = mainCamera;
@@ -21,7 +23,7 @@ export class ViewCube {
 
     // 뷰 큐브 카메라 설정
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-    this.camera.position.set(0, 0, 3.5);
+    this.camera.position.set(0, 0, this.cameraDistance);
     this.camera.lookAt(0, 0, 0);
 
     // 뷰 큐브 렌더러 설정
@@ -42,8 +44,8 @@ export class ViewCube {
     container.appendChild(this.renderer.domElement);
     document.body.appendChild(container);
 
-    // 큐브 생성
-    this.createCube();
+    // 큐브 대신 축 생성
+    this.createAxes();
 
     // 레이캐스터 설정
     this.raycaster = new THREE.Raycaster();
@@ -56,24 +58,34 @@ export class ViewCube {
     this.animate();
   }
 
-  private createCube(): void {
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
+  private createAxes(): void {
+    // 축 생성 (크기 조정)
+    const axisLength = 1.0;
+    this.axesHelper = new THREE.AxesHelper(axisLength);
+    this.scene.add(this.axesHelper);
 
-    // 각 면에 다른 색상과 라벨 적용
-    const materials = [
-      new THREE.MeshBasicMaterial({ color: 0x4285f4 }), // 오른쪽 - 파란색
-      new THREE.MeshBasicMaterial({ color: 0xea4335 }), // 왼쪽 - 빨간색
-      new THREE.MeshBasicMaterial({ color: 0xfbbc05 }), // 위 - 노란색
-      new THREE.MeshBasicMaterial({ color: 0x34a853 }), // 아래 - 초록색
-      new THREE.MeshBasicMaterial({ color: 0x9c27b0 }), // 앞 - 보라색
-      new THREE.MeshBasicMaterial({ color: 0xff9800 }), // 뒤 - 주황색
-    ];
+    // 축 레이블 생성
+    this.createAxisLabel(
+      "X",
+      new THREE.Vector3(axisLength + 0.2, 0, 0),
+      "#ff0000"
+    );
+    this.createAxisLabel(
+      "Y",
+      new THREE.Vector3(0, axisLength + 0.2, 0),
+      "#00ff00"
+    );
+    this.createAxisLabel(
+      "Z",
+      new THREE.Vector3(0, 0, axisLength + 0.2),
+      "#0000ff"
+    );
 
-    this.cube = new THREE.Mesh(geometry, materials);
-    this.scene.add(this.cube);
-
-    // 면 라벨 추가 (텍스처로 구현 가능)
-    this.addFaceLabels();
+    // 원점에 작은 구 추가 (원점 표시)
+    const originGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+    const originMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const origin = new THREE.Mesh(originGeometry, originMaterial);
+    this.scene.add(origin);
 
     // 조명 추가
     const light = new THREE.DirectionalLight(0xffffff, 1);
@@ -84,10 +96,39 @@ export class ViewCube {
     this.scene.add(ambientLight);
   }
 
-  private addFaceLabels(): void {
-    // 실제 구현에서는 Canvas를 사용하여 텍스처에 텍스트를 그리고
-    // 각 면에 적용하는 방식으로 구현할 수 있습니다.
-    // 간단한 예시로 생략합니다.
+  private createAxisLabel(
+    text: string,
+    position: THREE.Vector3,
+    color: string
+  ): void {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+
+    const context = canvas.getContext("2d");
+    if (context) {
+      context.fillStyle = "rgba(255, 255, 255, 0)"; // 투명 배경
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      context.font = "bold 48px Arial";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillStyle = color;
+      context.fillText(text, canvas.width / 2, canvas.height / 2);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+    });
+    const sprite = new THREE.Sprite(material);
+
+    sprite.position.copy(position);
+    sprite.scale.set(0.5, 0.5, 0.5);
+
+    this.scene.add(sprite);
+    this.axesLabels.push(sprite);
   }
 
   private onClick(event: MouseEvent): void {
@@ -98,39 +139,61 @@ export class ViewCube {
 
     // 레이캐스팅
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObject(this.cube);
 
-    if (intersects.length > 0) {
-      const face = intersects[0].face;
-      if (!face) return;
+    // 축 방향 결정을 위한 가상 영역 생성
+    const virtualBoxSize = 0.5;
+    const boxes = [
+      { name: "x+", position: new THREE.Vector3(virtualBoxSize, 0, 0) },
+      { name: "x-", position: new THREE.Vector3(-virtualBoxSize, 0, 0) },
+      { name: "y+", position: new THREE.Vector3(0, virtualBoxSize, 0) },
+      { name: "y-", position: new THREE.Vector3(0, -virtualBoxSize, 0) },
+      { name: "z+", position: new THREE.Vector3(0, 0, virtualBoxSize) },
+      { name: "z-", position: new THREE.Vector3(0, 0, -virtualBoxSize) },
+    ];
 
-      // 클릭한 면에 따라 메인 카메라 위치 변경
-      this.setMainCameraByFace(face.normal);
+    // 가장 가까운 방향 찾기
+    const mouseRay = new THREE.Ray();
+    this.raycaster.ray.at(10, mouseRay.origin); // 레이 원점에서 10 단위 떨어진 지점
+    mouseRay.direction = this.raycaster.ray.direction;
+
+    let closestBox = null;
+    let minDistance = Infinity;
+
+    boxes.forEach((box) => {
+      const distance = mouseRay.origin.distanceTo(box.position);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestBox = box;
+      }
+    });
+
+    if (closestBox) {
+      this.setMainCameraByDirection(closestBox.name);
     }
   }
 
-  private setMainCameraByFace(normal: THREE.Vector3): void {
-    // 클릭한 면의 법선 벡터에 따라 메인 카메라 위치 설정
+  private setMainCameraByDirection(direction: string): void {
     const distance = 20; // 카메라 거리
 
-    if (normal.equals(new THREE.Vector3(1, 0, 0))) {
-      // 오른쪽 면
-      this.mainCamera.position.set(distance, 0, 0);
-    } else if (normal.equals(new THREE.Vector3(-1, 0, 0))) {
-      // 왼쪽 면
-      this.mainCamera.position.set(-distance, 0, 0);
-    } else if (normal.equals(new THREE.Vector3(0, 1, 0))) {
-      // 위 면
-      this.mainCamera.position.set(0, distance, 0);
-    } else if (normal.equals(new THREE.Vector3(0, -1, 0))) {
-      // 아래 면
-      this.mainCamera.position.set(0, -distance, 0);
-    } else if (normal.equals(new THREE.Vector3(0, 0, 1))) {
-      // 앞 면
-      this.mainCamera.position.set(0, 0, distance);
-    } else if (normal.equals(new THREE.Vector3(0, 0, -1))) {
-      // 뒤 면
-      this.mainCamera.position.set(0, 0, -distance);
+    switch (direction) {
+      case "x+":
+        this.mainCamera.position.set(distance, 0, 0);
+        break;
+      case "x-":
+        this.mainCamera.position.set(-distance, 0, 0);
+        break;
+      case "y+":
+        this.mainCamera.position.set(0, distance, 0);
+        break;
+      case "y-":
+        this.mainCamera.position.set(0, -distance, 0);
+        break;
+      case "z+":
+        this.mainCamera.position.set(0, 0, distance);
+        break;
+      case "z-":
+        this.mainCamera.position.set(0, 0, -distance);
+        break;
     }
 
     this.mainCamera.lookAt(0, 0, 0);
@@ -139,7 +202,7 @@ export class ViewCube {
   }
 
   public update(): void {
-    // 메인 카메라의 방향에 따라 뷰 큐브 회전
+    // 메인 카메라의 방향에 따라 축 회전
     if (
       this.mainCamera instanceof THREE.OrthographicCamera ||
       this.mainCamera instanceof THREE.PerspectiveCamera
@@ -147,12 +210,18 @@ export class ViewCube {
       const position = new THREE.Vector3();
       position.copy(this.mainCamera.position).normalize();
 
-      // 큐브 회전 계산
-      this.cube.rotation.y = Math.atan2(position.x, position.z);
-      this.cube.rotation.x = Math.atan2(
-        position.y,
-        Math.sqrt(position.x * position.x + position.z * position.z)
+      const cameraPosition = position.multiplyScalar(this.cameraDistance);
+      this.camera.position.set(
+        cameraPosition.x,
+        cameraPosition.y,
+        cameraPosition.z
       );
+      this.camera.lookAt(0, 0, 0);
+
+      // 레이블도 같이 회전
+      this.axesLabels.forEach((label) => {
+        label.rotation.copy(this.axesHelper.rotation);
+      });
     }
   }
 

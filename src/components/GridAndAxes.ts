@@ -4,8 +4,8 @@ export class GridAndAxes {
   private scene: THREE.Scene;
   private gridSize: number;
   private gridDivisions: number;
-  private gridHelper: THREE.GridHelper;
-  private axesHelper: THREE.AxesHelper;
+  private gridHelper!: THREE.GridHelper;
+  private axesHelper!: THREE.AxesHelper;
 
   constructor(
     scene: THREE.Scene,
@@ -56,7 +56,7 @@ export class GridAndAxes {
 
   private createAxes(): void {
     // 축 생성 (X: 빨강, Y: 초록, Z: 파랑)
-    this.axesHelper = new THREE.AxesHelper(this.gridSize / 4);
+    this.axesHelper = new THREE.AxesHelper(this.gridSize / 10);
     this.scene.add(this.axesHelper);
 
     // 축 라벨 추가 (선택 사항)
