@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CAD Viewer Test</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+      }
+      #viewer-container {
+        width: 800px;
+        height: 600px;
+        border: 1px solid #ccc;
+      }
+      #test-controls {
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="test-controls">
+      <button onclick="loadModel('/test_models/Duck.glb')">
+        Duck 모델 로드
+      </button>
+      <button onclick="loadModel('/test_models/Box.glb')">Box 모델 로드</button>
+    </div>
+
+    <iframe id="viewer-container" src="/"></iframe>
+
+    <script>
+      // Bubble.io의 메시지 전송을 시뮬레이션
+      function loadModel(modelUrl) {
+        const iframe = document.getElementById("viewer-container");
+        iframe.contentWindow.postMessage({ modelUrl }, "*");
+      }
+
+      // 뷰어로부터의 메시지 수신
+      window.addEventListener("message", function (event) {
+        if (event.data && event.data.type === "modelLoaded") {
+          console.log("모델 로드 상태:", event.data.success);
+          if (!event.data.success) {
+            console.error("에러:", event.data.error);
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
