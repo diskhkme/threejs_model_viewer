@@ -12,20 +12,22 @@ export type PostMessageData =
   | {
       type: "loadModel";
       modelUrl: string;
+      modelId: string;
     }
   | {
       type: "unloadModel";
+      modelId: string;
     }
   | ModelLoadedMessage
   | ModelUnloadedMessage;
 
 export class MessageHandler {
-  private onModelUrlReceived: (url: string) => void;
-  private onModelUnload: () => void;
+  private onModelUrlReceived: (url: string, modelId: string) => void;
+  private onModelUnload: (modelId: string) => void;
 
   constructor(
-    onModelUrlReceived: (url: string) => void,
-    onModelUnload: () => void
+    onModelUrlReceived: (url: string, modelId: string) => void,
+    onModelUnload: (modelId: string) => void
   ) {
     this.onModelUrlReceived = onModelUrlReceived;
     this.onModelUnload = onModelUnload;
@@ -36,18 +38,19 @@ export class MessageHandler {
   }
 
   private handleMessage(event: MessageEvent<PostMessageData>): void {
-    if (event.data && event.data.type === "loadModel" && event.data.modelUrl) {
-      this.onModelUrlReceived(event.data.modelUrl);
-    } else if (event.data && event.data.type === "unloadModel") {
-      this.onModelUnload();
+    if (event.data?.type === "loadModel") {
+      this.onModelUrlReceived(event.data.modelUrl, event.data.modelId);
+    } else if (event.data?.type === "unloadModel") {
+      this.onModelUnload(event.data.modelId);
     }
   }
 
   private checkUrlParameters(): void {
     const urlParams = new URLSearchParams(window.location.search);
     const modelUrl = urlParams.get("modelUrl");
+    const modelId = urlParams.get("modelId") || "default";
     if (modelUrl) {
-      this.onModelUrlReceived(modelUrl);
+      this.onModelUrlReceived(modelUrl, modelId);
     }
   }
 

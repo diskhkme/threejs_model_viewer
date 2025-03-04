@@ -51,9 +51,6 @@ export class ViewCube {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
-    // 이벤트 리스너
-    this.renderer.domElement.addEventListener("click", this.onClick.bind(this));
-
     // 애니메이션
     this.animate();
   }
@@ -129,76 +126,6 @@ export class ViewCube {
 
     this.scene.add(sprite);
     this.axesLabels.push(sprite);
-  }
-
-  private onClick(event: MouseEvent): void {
-    // 마우스 위치 계산
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    // 레이캐스팅
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-
-    // 축 방향 결정을 위한 가상 영역 생성
-    const virtualBoxSize = 0.5;
-    const boxes = [
-      { name: "x+", position: new THREE.Vector3(virtualBoxSize, 0, 0) },
-      { name: "x-", position: new THREE.Vector3(-virtualBoxSize, 0, 0) },
-      { name: "y+", position: new THREE.Vector3(0, virtualBoxSize, 0) },
-      { name: "y-", position: new THREE.Vector3(0, -virtualBoxSize, 0) },
-      { name: "z+", position: new THREE.Vector3(0, 0, virtualBoxSize) },
-      { name: "z-", position: new THREE.Vector3(0, 0, -virtualBoxSize) },
-    ];
-
-    // 가장 가까운 방향 찾기
-    const mouseRay = new THREE.Ray();
-    this.raycaster.ray.at(10, mouseRay.origin); // 레이 원점에서 10 단위 떨어진 지점
-    mouseRay.direction = this.raycaster.ray.direction;
-
-    let closestBox = null;
-    let minDistance = Infinity;
-
-    boxes.forEach((box) => {
-      const distance = mouseRay.origin.distanceTo(box.position);
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestBox = box;
-      }
-    });
-
-    if (closestBox) {
-      this.setMainCameraByDirection(closestBox.name);
-    }
-  }
-
-  private setMainCameraByDirection(direction: string): void {
-    const distance = 20; // 카메라 거리
-
-    switch (direction) {
-      case "x+":
-        this.mainCamera.position.set(distance, 0, 0);
-        break;
-      case "x-":
-        this.mainCamera.position.set(-distance, 0, 0);
-        break;
-      case "y+":
-        this.mainCamera.position.set(0, distance, 0);
-        break;
-      case "y-":
-        this.mainCamera.position.set(0, -distance, 0);
-        break;
-      case "z+":
-        this.mainCamera.position.set(0, 0, distance);
-        break;
-      case "z-":
-        this.mainCamera.position.set(0, 0, -distance);
-        break;
-    }
-
-    this.mainCamera.lookAt(0, 0, 0);
-    this.mainControls.target.set(0, 0, 0);
-    this.mainControls.update();
   }
 
   public update(): void {
