@@ -5,12 +5,13 @@ import { SceneManager } from "./SceneManager";
 import { ControlsManager } from "./ControlsManager";
 import { ModelLoader, LoaderCallbacks } from "../loaders/ModelLoader";
 import { LoadingIndicator } from "../components/LoadingIndicator";
-import { TestControls } from "../components/TestControls";
+import { TestControls } from "../components/_deprecated/TestControls";
 import { MessageHandler } from "../utils/MessageHandler";
 import { ViewCube } from "../components/ViewCube";
 import { StandardViewButtons } from "../components/StandardViewButtons";
 import { GridAndAxes } from "../components/GridAndAxes";
 import { ModelInfoPanel } from "../components/ModelInfoPanel";
+import { FEATURE_FLAGS } from "../config/features";
 
 export class ModelViewer {
   private sceneManager: SceneManager;
@@ -46,9 +47,6 @@ export class ModelViewer {
       this.unloadModel.bind(this)
     );
 
-    // 테스트 컨트롤 초기화
-    new TestControls();
-
     // 뷰 큐브 초기화
     this.viewCube = new ViewCube(
       this.sceneManager.getCamera(),
@@ -77,6 +75,11 @@ export class ModelViewer {
 
     // 애니메이션 시작
     this.animate();
+
+    if (FEATURE_FLAGS.ENABLE_TEST_CONTROLS) {
+      // @deprecated TestControls는 v1.0.0에서 제거될 예정입니다.
+      new TestControls();
+    }
   }
 
   private setupGUI(): void {
