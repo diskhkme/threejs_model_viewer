@@ -4,17 +4,31 @@ export interface ModelLoadedMessage {
   error?: string;
 }
 
+export interface ModelUnloadedMessage {
+  type: "modelUnloaded";
+}
+
 export type PostMessageData =
   | {
-      modelUrl?: string;
+      type: "loadModel";
+      modelUrl: string;
     }
-  | ModelLoadedMessage;
+  | {
+      type: "unloadModel";
+    }
+  | ModelLoadedMessage
+  | ModelUnloadedMessage;
 
 export class MessageHandler {
   private onModelUrlReceived: (url: string) => void;
+  private onModelUnload: () => void;
 
-  constructor(onModelUrlReceived: (url: string) => void) {
+  constructor(
+    onModelUrlReceived: (url: string) => void,
+    onModelUnload: () => void
+  ) {
     this.onModelUrlReceived = onModelUrlReceived;
+    this.onModelUnload = onModelUnload;
     window.addEventListener("message", this.handleMessage.bind(this));
 
     // URL 파라미터 체크
@@ -22,8 +36,10 @@ export class MessageHandler {
   }
 
   private handleMessage(event: MessageEvent<PostMessageData>): void {
-    if (event.data && "modelUrl" in event.data && event.data.modelUrl) {
+    if (event.data && event.data.type === "loadModel" && event.data.modelUrl) {
       this.onModelUrlReceived(event.data.modelUrl);
+    } else if (event.data && event.data.type === "unloadModel") {
+      this.onModelUnload();
     }
   }
 
@@ -43,6 +59,17 @@ export class MessageHandler {
           success,
           error,
         } as ModelLoadedMessage,
+        "*"
+      );
+    }
+  }
+
+  public sendModelUnloadedMessage(): void {
+    if (window.parent) {
+      window.parent.postMessage(
+        {
+          type: "modelUnloaded",
+        } as ModelUnloadedMessage,
         "*"
       );
     }

@@ -40,7 +40,10 @@ export class ModelViewer {
     this.loadingIndicator = new LoadingIndicator();
 
     // 메시지 핸들러 초기화
-    this.messageHandler = new MessageHandler(this.loadModel.bind(this));
+    this.messageHandler = new MessageHandler(
+      this.loadModel.bind(this),
+      this.unloadModel.bind(this)
+    );
 
     // 테스트 컨트롤 초기화
     new TestControls();
@@ -158,6 +161,29 @@ export class ModelViewer {
     };
 
     ModelLoader.loadModel(url, callbacks);
+  }
+
+  // 모델 언로드 메서드 추가
+  public unloadModel(): void {
+    if (this.currentModel) {
+      this.sceneManager.getScene().remove(this.currentModel);
+      this.currentModel = null;
+
+      // 메모리 정리
+      if (this.currentModel instanceof THREE.Mesh) {
+        if (this.currentModel.geometry) {
+          this.currentModel.geometry.dispose();
+        }
+        if (Array.isArray(this.currentModel.material)) {
+          this.currentModel.material.forEach((material) => material.dispose());
+        } else if (this.currentModel.material) {
+          this.currentModel.material.dispose();
+        }
+      }
+
+      // 부모 프레임에 언로드 완료 알림
+      this.messageHandler.sendModelUnloadedMessage();
+    }
   }
 
   private animate(): void {

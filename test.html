@@ -22,6 +22,7 @@
     <div id="test-controls">
       <button onclick="loadModel('/test_models/Duck.glb')">Duck 로드</button>
       <button onclick="loadModel('/test_models/Box.glb')">Box 로드</button>
+      <button onclick="unloadModel()">모델 언로드</button>
     </div>
 
     <iframe id="viewer-container" src="/"></iframe>
@@ -30,7 +31,13 @@
       // Bubble.io의 메시지 전송을 시뮬레이션
       function loadModel(modelUrl) {
         const iframe = document.getElementById("viewer-container");
-        iframe.contentWindow.postMessage({ modelUrl }, "*");
+        iframe.contentWindow.postMessage({ type: "loadModel", modelUrl }, "*");
+      }
+
+      // 모델 언로드 함수 추가
+      function unloadModel() {
+        const iframe = document.getElementById("viewer-container");
+        iframe.contentWindow.postMessage({ type: "unloadModel" }, "*");
       }
 
       // 뷰어로부터의 메시지 수신
@@ -40,6 +47,8 @@
           if (!event.data.success) {
             console.error("에러:", event.data.error);
           }
+        } else if (event.data && event.data.type === "modelUnloaded") {
+          console.log("모델 언로드 완료");
         }
       });
     </script>
