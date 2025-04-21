@@ -111,33 +111,48 @@ export class AlignmentManager {
       // 기준 모델은 건너뛰기
       if (data.uuid === this.referenceModelInfo!.uuid) return;
 
-      // 모델 객체 찾기 (Mesh 또는 그 부모 그룹일 수 있음)
-      // ControlsManager에서 저장된 object 참조를 사용
-      //   const objectToAlign =
-      //     data.object.parent instanceof THREE.Group
-      //       ? data.object.parent
-      //       : data.object;
+      // --- 모델 객체 찾기 및 null 체크 강화 ---
+      let objectToAlign: THREE.Object3D | null = null;
+      // 우선 메쉬 자체의 부모가 그룹인지 확인
+      if (data.object.parent instanceof THREE.Group) {
+        objectToAlign = data.object.parent;
+      } else {
+        // 부모가 그룹이 아니면 메쉬 자체가 최상위 객체일 수 있음 (씬에 직접 추가된 경우 등)
+        // 또는 다른 상위 Object3D 일 수 있음. 안전하게 data.object를 기본으로 사용
+        objectToAlign = data.object;
+        // 만약 모델이 항상 특정 그룹 아래에 있다는 보장이 있다면,
+        // 더 상위로 올라가며 그룹을 찾는 로직을 추가할 수도 있음.
+        // 예: let current: THREE.Object3D | null = data.object;
+        //     while (current && !(current instanceof THREE.Group)) {
+        //         current = current.parent;
+        //     } // objectToAlign = current;
+      }
 
-      // 현재는 모델 전체를 단일 객체로 취급하고 그룹을 이동 (data.object는 Mesh, data.object.parent는 Group)
-      const objectToAlign = data.object.parent;
-      const currentVertexPosition = data.worldPosition.clone();
+      // objectToAlign이 유효한지 확인 후 작업 수행
+      if (objectToAlign) {
+        const currentVertexPosition = data.worldPosition.clone();
 
-      // 이동 벡터 계산 (타겟 위치 - 현재 위치)
-      const translation = new THREE.Vector3().subVectors(
-        targetPosition,
-        currentVertexPosition
-      );
+        // 이동 벡터 계산 (타겟 위치 - 현재 위치)
+        const translation = new THREE.Vector3().subVectors(
+          targetPosition,
+          currentVertexPosition
+        );
 
-      console.log(
-        `AlignmentManager: Aligning model ${data.uuid}: moving by`,
-        translation
-      );
+        console.log(
+          `AlignmentManager: Aligning model ${data.uuid}: moving by`,
+          translation
+        );
 
-      // 모델 전체를 이동
-      objectToAlign.position.add(translation);
+        // 모델 전체를 이동
+        objectToAlign.position.add(translation);
 
-      // 중요: 이동 후 월드 매트릭스 업데이트
-      objectToAlign.updateMatrixWorld(true);
+        // 중요: 이동 후 월드 매트릭스 업데이트
+        objectToAlign.updateMatrixWorld(true);
+      } else {
+        console.warn(
+          `AlignmentManager: Could not determine the object to align for UUID ${data.uuid}`
+        );
+      }
     });
 
     console.log("AlignmentManager: Alignment finished.");
