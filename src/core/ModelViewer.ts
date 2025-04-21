@@ -29,6 +29,7 @@ export class ModelViewer {
   private sceneTreeViewer!: SceneTreeViewer;
   private currentModelUUID: string | null = null;
   private models: Map<string, string> = new Map(); // key: modelId, value: UUID
+  private currentlySelectedModelUUIDInTree: string | null = null;
 
   // 정렬 기능 버튼 참조 (초기화 오류 해결)
   private toggleSelectModeButton!: HTMLButtonElement;
@@ -55,6 +56,9 @@ export class ModelViewer {
 
     // SceneTreeViewer 초기화
     this.sceneTreeViewer = new SceneTreeViewer("scene-tree-container");
+    this.sceneTreeViewer.onNodeSelected = this.handleNodeSelection.bind(this);
+    this.sceneTreeViewer.onNodeVisibilityChange =
+      this.handleNodeVisibilityChange.bind(this);
 
     // 로딩 인디케이터 초기화
     this.loadingIndicator = new LoadingIndicator();
@@ -94,11 +98,19 @@ export class ModelViewer {
 
     // 모델 정보 패널 초기화
     this.modelInfoPanel = new ModelInfoPanel();
-    const infoPanelElement = document.getElementById("model-info-panel");
-    if (infoPanelElement) {
-      this.mainContentArea.appendChild(infoPanelElement);
+    if (this.modelInfoPanel.getElement) {
+      this.mainContentArea.appendChild(this.modelInfoPanel.getElement());
     } else {
-      console.warn("ModelInfoPanel element not found by ID 'model-info-panel'");
+      console.warn(
+        "ModelInfoPanel does not have getElement method, attempting direct append."
+      );
+      try {
+        this.mainContentArea.appendChild(
+          this.modelInfoPanel as unknown as Node
+        );
+      } catch (e) {
+        console.error("Failed to append ModelInfoPanel", e);
+      }
     }
 
     // GUI 초기화
@@ -173,14 +185,14 @@ export class ModelViewer {
 
     const callbacks: LoaderCallbacks = {
       onLoad: (model) => {
-        // 모델에 식별자 설정
-        model.name = "currentModel";
+        // 파일 이름 추출
+        const fileName = url.split("/").pop() || `Model_${modelId}`;
+
+        // 모델 이름 설정
+        model.name = fileName;
+
         model.userData.type = "mainModel";
-
-        // UUID 저장
         this.models.set(modelId, model.uuid);
-
-        // SceneManager를 통해 모델 추가 (씬에도 자동으로 추가됨)
         this.sceneManager.addLoadedModel(model);
 
         // 모델 경계 상자 계산
@@ -204,8 +216,11 @@ export class ModelViewer {
         this.controlsManager.setTarget(center.x, center.y, center.z);
 
         // 모델 정보 패널 업데이트
-        const fileName = url.split("/").pop() || "Unknown";
         this.modelInfoPanel.updateModelInfo(model, fileName);
+        if (this.modelInfoPanel.show) {
+          this.modelInfoPanel.show();
+        }
+        this.currentlySelectedModelUUIDInTree = model.uuid;
 
         // 로더 숨기기
         this.loadingIndicator.hide();
@@ -228,6 +243,10 @@ export class ModelViewer {
           false,
           error instanceof Error ? error.message : String(error)
         );
+        if (this.modelInfoPanel && this.modelInfoPanel.hide) {
+          this.modelInfoPanel.hide();
+        }
+        this.currentlySelectedModelUUIDInTree = null;
       },
     };
 
@@ -266,6 +285,10 @@ export class ModelViewer {
 
       // 모델 언로드 후 트리 업데이트 (로드된 모델 목록 전달)
       this.sceneTreeViewer.buildTree(this.sceneManager.getLoadedModels());
+
+      if (this.currentlySelectedModelUUIDInTree === uuid) {
+        this.handleNodeSelection(null);
+      }
     }
   }
 
@@ -298,6 +321,49 @@ export class ModelViewer {
       console.log("Selection cleared notification in ModelViewer");
       // this.alignmentManager.clear(); // AlignmentManager 상태도 확실히 초기화
       this.updateAlignmentButtons();
+    }
+  }
+
+  // 트리 노드 선택 처리 콜백
+  private handleNodeSelection(uuid: string | null): void {
+    console.log("Node selected in tree:", uuid);
+    this.currentlySelectedModelUUIDInTree = uuid;
+
+    if (uuid) {
+      // 선택된 모델 객체 찾기
+      const selectedModel = this.sceneManager
+        .getScene()
+        .getObjectByProperty("uuid", uuid);
+
+      if (selectedModel) {
+        // 정보 패널 업데이트 및 표시
+        const modelName = selectedModel.name || `Model_${uuid.substring(0, 6)}`;
+        this.modelInfoPanel.updateModelInfo(selectedModel, modelName);
+        if (this.modelInfoPanel.show) this.modelInfoPanel.show(); // show 메서드 확인 후 호출
+      } else {
+        console.warn(`Selected model with UUID ${uuid} not found in scene.`);
+        if (this.modelInfoPanel.hide) this.modelInfoPanel.hide(); // hide 메서드 확인 후 호출
+      }
+    } else {
+      // 선택 해제 시 패널 숨김
+      if (this.modelInfoPanel.hide) this.modelInfoPanel.hide(); // hide 메서드 확인 후 호출
+    }
+  }
+
+  // --- 트리 노드 가시성 변경 처리 콜백 --- (메서드 추가)
+  private handleNodeVisibilityChange(uuid: string, isVisible: boolean): void {
+    console.log(`Node visibility change: UUID=${uuid}, Visible=${isVisible}`);
+    const modelObject = this.sceneManager
+      .getScene()
+      .getObjectByProperty("uuid", uuid);
+    if (modelObject) {
+      modelObject.visible = isVisible;
+      // 자식 객체들의 가시성도 함께 변경하려면 traverse 사용 (선택 사항)
+      // modelObject.traverse(child => { child.visible = isVisible; });
+    } else {
+      console.warn(
+        `Model object with UUID ${uuid} not found for visibility change.`
+      );
     }
   }
 

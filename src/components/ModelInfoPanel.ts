@@ -7,9 +7,7 @@ export class ModelInfoPanel {
   constructor() {
     // 컨테이너 생성
     this.container = document.createElement("div");
-    this.container.style.position = "absolute";
-    this.container.style.bottom = "20px";
-    this.container.style.left = "20px";
+    this.container.id = "model-info-panel";
     this.container.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
     this.container.style.color = "white";
     this.container.style.padding = "10px";
@@ -18,7 +16,6 @@ export class ModelInfoPanel {
     this.container.style.fontSize = "12px";
     this.container.style.width = "250px";
     this.container.style.boxShadow = "0 0 10px rgba(0, 0, 0, 0.5)";
-    document.body.appendChild(this.container);
 
     // 기본 정보 항목 생성
     this.addInfoItem("fileName", "파일명: ");
@@ -28,7 +25,7 @@ export class ModelInfoPanel {
     this.addInfoItem("dimensions", "치수: ");
 
     // 초기에는 숨김
-    this.container.style.display = "none";
+    this.hide();
   }
 
   private addInfoItem(id: string, label: string): void {
@@ -96,12 +93,17 @@ export class ModelInfoPanel {
     this.infoItems["dimensions"].textContent = `X: ${size.x.toFixed(
       2
     )}, Y: ${size.y.toFixed(2)}, Z: ${size.z.toFixed(2)}`;
-
-    // 패널 표시
-    this.container.style.display = "block";
   }
 
   public hide(): void {
     this.container.style.display = "none";
+  }
+
+  public show(): void {
+    this.container.style.display = "block";
+  }
+
+  public getElement(): HTMLElement {
+    return this.container;
   }
 }
