@@ -114,19 +114,7 @@ export class AlignmentManager {
       // --- 모델 객체 찾기 및 null 체크 강화 ---
       let objectToAlign: THREE.Object3D | null = null;
       // 우선 메쉬 자체의 부모가 그룹인지 확인
-      if (data.object.parent instanceof THREE.Group) {
-        objectToAlign = data.object.parent;
-      } else {
-        // 부모가 그룹이 아니면 메쉬 자체가 최상위 객체일 수 있음 (씬에 직접 추가된 경우 등)
-        // 또는 다른 상위 Object3D 일 수 있음. 안전하게 data.object를 기본으로 사용
-        objectToAlign = data.object;
-        // 만약 모델이 항상 특정 그룹 아래에 있다는 보장이 있다면,
-        // 더 상위로 올라가며 그룹을 찾는 로직을 추가할 수도 있음.
-        // 예: let current: THREE.Object3D | null = data.object;
-        //     while (current && !(current instanceof THREE.Group)) {
-        //         current = current.parent;
-        //     } // objectToAlign = current;
-      }
+      objectToAlign = data.object.parent;
 
       // objectToAlign이 유효한지 확인 후 작업 수행
       if (objectToAlign) {
