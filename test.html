@@ -25,7 +25,18 @@
       <button onclick="loadModel('/test_models/Box_Student.glb')">
         Student Box 로드
       </button>
+      <hr />
+      <button onclick="loadModel('/test_models_CAD/a/a0.stl')">CAD A0 (STL) 로드</button>
+      <button onclick="loadModel('/test_models_CAD/a/a1.stl')">CAD A1 (STL) 로드</button>
+      <button onclick="loadModel('/test_models_CAD/a/a2.stl')">CAD A2 (STL) 로드</button>
+      <br />
+      <button onclick="loadModel('/test_models_CAD/b/b0.stl')">CAD B0 (STL) 로드</button>
+      <button onclick="loadModel('/test_models_CAD/b/b1.stl')">CAD B1 (STL) 로드</button>
+      <button onclick="loadModel('/test_models_CAD/b/b2.stl')">CAD B2 (STL) 로드</button>
+      <hr />
       <button onclick="unloadModel()">모델 언로드</button>
+      <hr />
+      <button onclick="testCSG()">CSG 테스트</button>
     </div>
 
     <iframe id="viewer-container" src="/"></iframe>
@@ -41,6 +52,12 @@
       function unloadModel() {
         const iframe = document.getElementById("viewer-container");
         iframe.contentWindow.postMessage({ type: "unloadModel" }, "*");
+      }
+
+      // CSG 테스트 함수 추가
+      function testCSG() {
+        const iframe = document.getElementById("viewer-container");
+        iframe.contentWindow.postMessage({ type: "testCSG" }, "*");
       }
 
       // 뷰어로부터의 메시지 수신

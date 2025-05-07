@@ -2,7 +2,9 @@ import * as THREE from "three";
 
 export class SceneTreeViewer {
   private container: HTMLElement;
-  private selectedNodeElement: HTMLElement | null = null; // 현재 선택된 노드 참조
+  private selectedNodeElements: Map<string, HTMLElement> = new Map(); // 선택된 노드 요소들 (UUID -> HTMLElement)
+  private selectedNodeUUIDs: string[] = []; // 선택된 노드의 UUID 목록 (순서 유지)
+  private readonly MAX_SELECTED_NODES = 2; // CSG 연산을 위한 최대 선택 가능 노드 수
 
   // 노드 선택 시 호출될 콜백 함수 타입 정의
   public onNodeSelected: ((uuid: string | null) => void) | null = null;
@@ -27,13 +29,12 @@ export class SceneTreeViewer {
 
     // 컨테이너 클릭 시 선택 해제 (선택 사항)
     this.container.addEventListener("click", (event) => {
-      // 클릭된 요소가 노드 자체가 아닐 경우 선택 해제
       if (
         event.target === this.container ||
         (event.target instanceof HTMLElement &&
           event.target.closest(".scene-tree-node") === null)
       ) {
-        this.deselectNode();
+        this.clearAllSelections(); // 모든 선택 해제
       }
     });
   }
@@ -51,7 +52,7 @@ export class SceneTreeViewer {
     // 새로운 트리 생성 시작
     const rootUl = document.createElement("ul");
     rootUl.classList.add("scene-tree-root");
-    this.selectedNodeElement = null; // 트리 재빌드 시 선택 초기화
+    this.clearAllSelections(); // 트리 재빌드 시 모든 선택 초기화
 
     // 로드된 모델 목록을 순회하며 노드 생성
     loadedModels.forEach((model) => {
@@ -127,12 +128,11 @@ export class SceneTreeViewer {
     if (isRoot && this.onNodeSelected) {
       nodeContent.addEventListener("click", (event) => {
         event.stopPropagation();
-        // nodeElement 대신 listItem을 찾아 전달해야 함
         const nodeElement = (event.target as HTMLElement).closest(
           ".scene-tree-root-model"
-        );
-        if (nodeElement instanceof HTMLElement) {
-          this.selectNode(nodeElement, object.uuid);
+        ) as HTMLElement | null;
+        if (nodeElement && nodeElement.dataset.uuid) {
+          this.toggleNodeSelection(nodeElement, nodeElement.dataset.uuid);
         }
       });
     }
@@ -188,37 +188,55 @@ export class SceneTreeViewer {
     this.container.style.display = "none";
   }
 
-  // 노드 선택 처리 로직
-  private selectNode(nodeElement: HTMLElement, uuid: string): void {
-    // 이미 선택된 노드를 다시 클릭하면 선택 해제 (선택 사항)
-    if (this.selectedNodeElement === nodeElement) {
-      this.deselectNode();
-      return;
+  // 노드 선택 토글 로직 (다중 선택 지원)
+  private toggleNodeSelection(nodeElement: HTMLElement, uuid: string): void {
+    const asmIndex = this.selectedNodeUUIDs.indexOf(uuid);
+
+    if (asmIndex > -1) {
+      // 이미 선택된 노드: 선택 해제
+      this.selectedNodeUUIDs.splice(asmIndex, 1);
+      nodeElement.classList.remove("selected");
+      this.selectedNodeElements.delete(uuid);
+      if (this.onNodeSelected) this.onNodeSelected(null); // 마지막 선택 해제 시 null 알림 (기존 콜백 유지용)
+    } else {
+      // 새 노드 선택
+      if (this.selectedNodeUUIDs.length >= this.MAX_SELECTED_NODES) {
+        // 최대 선택 개수 도달 시, 가장 오래된 선택 제거
+        const removedUUID = this.selectedNodeUUIDs.shift(); // 첫 번째 요소 제거 및 반환
+        if (removedUUID) {
+          const oldNodeEl = this.selectedNodeElements.get(removedUUID);
+          if (oldNodeEl) oldNodeEl.classList.remove("selected");
+          this.selectedNodeElements.delete(removedUUID);
+        }
+      }
+      this.selectedNodeUUIDs.push(uuid);
+      nodeElement.classList.add("selected");
+      this.selectedNodeElements.set(uuid, nodeElement);
+      if (this.onNodeSelected) this.onNodeSelected(uuid); // 마지막으로 선택된 노드 알림 (기존 콜백 유지용)
     }
-
-    // 다른 노드가 선택되어 있었다면 해제
-    this.deselectNode();
-
-    // 새 노드 선택
-    this.selectedNodeElement = nodeElement;
-    this.selectedNodeElement.classList.add("selected"); // 선택 클래스 추가
-
-    // 콜백 호출 (선택된 노드의 UUID 전달)
+    // ModelViewer가 이 변경을 감지하고 CSG 버튼 상태를 업데이트하도록 유도해야 함.
+    // 예를 들어, ModelViewer의 handleNodeSelection에서 getSelectedNodeUUIDs()를 호출하도록 함.
+    // 또는 onSelectionChange 콜백을 추가하여 ModelViewer에 직접 알릴 수 있음.
+  }
+  
+  // 모든 선택 해제 로직
+  private clearAllSelections(): void {
+    this.selectedNodeUUIDs.forEach(uuid => {
+        const nodeEl = this.selectedNodeElements.get(uuid);
+        if (nodeEl) nodeEl.classList.remove("selected");
+    });
+    this.selectedNodeUUIDs = [];
+    this.selectedNodeElements.clear();
     if (this.onNodeSelected) {
-      this.onNodeSelected(uuid);
+      this.onNodeSelected(null); // 선택 해제 시 콜백 호출
     }
   }
 
-  // 노드 선택 해제 로직
-  private deselectNode(): void {
-    if (this.selectedNodeElement) {
-      this.selectedNodeElement.classList.remove("selected");
-      this.selectedNodeElement = null;
-
-      // 콜백 호출 (선택 해제 알림)
-      if (this.onNodeSelected) {
-        this.onNodeSelected(null);
-      }
-    }
+  /**
+   * 현재 선택된 노드들의 UUID 목록을 반환합니다.
+   * @returns 선택된 노드 UUID 문자열 배열
+   */
+  public getSelectedNodeUUIDs(): string[] {
+    return [...this.selectedNodeUUIDs]; // 복사본 반환
   }
 }

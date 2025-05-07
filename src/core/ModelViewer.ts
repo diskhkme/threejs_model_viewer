@@ -7,12 +7,13 @@ import { LoadingIndicator } from "../components/LoadingIndicator";
 import { TestControls } from "../components/_deprecated/TestControls";
 import { MessageHandler } from "../utils/MessageHandler";
 import { ViewCube } from "../components/ViewCube";
-import { StandardViewButtons } from "../components/StandardViewButtons";
+// import { StandardViewButtons } from "../components/StandardViewButtons"; // StandardViewButtons 임포트 주석 처리
 import { GridAndAxes } from "../components/GridAndAxes";
 import { ModelInfoPanel } from "../components/ModelInfoPanel";
 import { FEATURE_FLAGS } from "../config/features";
 import { AlignmentManager, SelectedVertexData } from "./AlignmentManager";
 import { SceneTreeViewer } from "./SceneTreeViewer";
+import { CSGManager } from "./CSGManager";
 
 export class ModelViewer {
   private sceneManager: SceneManager;
@@ -21,7 +22,7 @@ export class ModelViewer {
   private loadingIndicator: LoadingIndicator;
   private messageHandler: MessageHandler;
   private viewCube: ViewCube;
-  private standardViewButtons: StandardViewButtons;
+  // private standardViewButtons: StandardViewButtons; // 멤버 변수 주석 처리
   private gridAndAxes: GridAndAxes;
   private modelInfoPanel: ModelInfoPanel;
   private gui: GUI;
@@ -30,11 +31,13 @@ export class ModelViewer {
   private currentModelUUID: string | null = null;
   private models: Map<string, string> = new Map(); // key: modelId, value: UUID
   private currentlySelectedModelUUIDInTree: string | null = null;
+  private csgManager: CSGManager;
 
   // 정렬 기능 버튼 참조 (초기화 오류 해결)
   private toggleSelectModeButton!: HTMLButtonElement;
   private clearSelectionButton!: HTMLButtonElement;
   private alignButton!: HTMLButtonElement;
+  private performCSGSubtractButton!: HTMLButtonElement;
 
   constructor() {
     // 씬 매니저 초기화
@@ -53,6 +56,9 @@ export class ModelViewer {
 
     // AlignmentManager 초기화 (ControlsManager 전달)
     this.alignmentManager = new AlignmentManager(this.controlsManager);
+
+    // CSGManager 초기화
+    this.csgManager = new CSGManager();
 
     // SceneTreeViewer 초기화
     this.sceneTreeViewer = new SceneTreeViewer("scene-tree-container");
@@ -78,7 +84,8 @@ export class ModelViewer {
       console.warn("ViewCube element not found by ID 'view-cube-container'");
     }
 
-    // 표준 뷰 버튼 초기화
+    // 표준 뷰 버튼 초기화 (주석 처리)
+    /*
     this.standardViewButtons = new StandardViewButtons(
       this.sceneManager.getCamera()
     );
@@ -92,6 +99,7 @@ export class ModelViewer {
         "StandardViewButtons element not found by ID 'standard-view-buttons-container'"
       );
     }
+    */
 
     // 그리드 및 축 초기화
     this.gridAndAxes = new GridAndAxes(this.sceneManager.getScene());
@@ -348,6 +356,10 @@ export class ModelViewer {
       // 선택 해제 시 패널 숨김
       if (this.modelInfoPanel.hide) this.modelInfoPanel.hide(); // hide 메서드 확인 후 호출
     }
+
+    // CSG 연산을 위한 모델 선택 로직은 여기에 추가하거나 별도 관리
+    // 예를 들어, 선택된 노드가 2개일 때 CSG 버튼 활성화 등
+    this.updateCSGButtonState(); // CSG 버튼 상태 업데이트 호출
   }
 
   // --- 트리 노드 가시성 변경 처리 콜백 --- (메서드 추가)
@@ -419,6 +431,13 @@ export class ModelViewer {
     };
     controlsContainer.appendChild(this.alignButton);
 
+    // --- CSG 빼기 연산 버튼 ---
+    this.performCSGSubtractButton = document.createElement("button");
+    this.performCSGSubtractButton.textContent = "CSG 빼기 (선택된 2개)";
+    this.performCSGSubtractButton.disabled = true; // 초기 비활성화
+    this.performCSGSubtractButton.onclick = this.performCSGSubtract.bind(this);
+    controlsContainer.appendChild(this.performCSGSubtractButton);
+
     // 메인 영역에 버튼 컨테이너 추가
     this.mainContentArea.appendChild(controlsContainer);
   }
@@ -432,6 +451,74 @@ export class ModelViewer {
     // 정점 선택 모드가 아닐 때만 버튼 활성화 고려
     this.alignButton.disabled = isSelectionMode || !canAlign;
     this.clearSelectionButton.disabled = isSelectionMode || !hasSelection;
+  }
+
+  // CSG 버튼 상태 업데이트 로직 (SceneTreeViewer의 선택 상태에 따라)
+  private updateCSGButtonState(): void {
+    // SceneTreeViewer에서 선택된 노드 목록을 가져오는 기능이 필요합니다.
+    // 예시: const selectedNodes = this.sceneTreeViewer.getSelectedNodes();
+    // 여기서는 임시로 SceneTreeViewer에 getSelectedNodeUUIDs() 메소드가 있다고 가정합니다.
+    const selectedNodeUUIDs = this.sceneTreeViewer.getSelectedNodeUUIDs ? this.sceneTreeViewer.getSelectedNodeUUIDs() : [];
+    this.performCSGSubtractButton.disabled = selectedNodeUUIDs.length !== 2;
+  }
+
+  // CSG 빼기 연산 수행
+  private async performCSGSubtract(): Promise<void> {
+    // SceneTreeViewer에서 선택된 두 개의 노드 UUID를 가져옵니다.
+    // 이 부분은 SceneTreeViewer의 실제 다중 선택 API에 따라 수정되어야 합니다.
+    const selectedNodeUUIDs = this.sceneTreeViewer.getSelectedNodeUUIDs ? this.sceneTreeViewer.getSelectedNodeUUIDs() : [];
+
+    if (selectedNodeUUIDs.length !== 2) {
+      alert("CSG 빼기 연산을 수행하려면 정확히 두 개의 모델을 선택해야 합니다.");
+      return;
+    }
+
+    const modelA_UUID = selectedNodeUUIDs[0];
+    const modelB_UUID = selectedNodeUUIDs[1];
+
+    const modelA = this.sceneManager.getScene().getObjectByProperty("uuid", modelA_UUID) as THREE.Mesh;
+    const modelB = this.sceneManager.getScene().getObjectByProperty("uuid", modelB_UUID) as THREE.Mesh;
+
+    if (!modelA || !modelB) {
+      alert("선택된 모델을 씬에서 찾을 수 없습니다.");
+      console.error("CSG Error: 선택된 모델 찾기 실패", { modelA_UUID, modelB_UUID });
+      return;
+    }
+    
+    if (!(modelA instanceof THREE.Mesh) || !(modelB instanceof THREE.Mesh)) {
+        alert("선택된 객체가 유효한 메쉬가 아닙니다. CSG 연산은 메쉬 객체에 대해서만 가능합니다.");
+        console.error("CSG Error: 선택된 객체가 메쉬가 아님", { modelA, modelB });
+        return;
+    }
+
+    this.loadingIndicator.show();
+    try {
+      const resultMesh = this.csgManager.performSubtract(modelA, modelB);
+
+      if (resultMesh) {
+        const nameA = modelA.name || "ModelA";
+        const nameB = modelB.name || "ModelB";
+        resultMesh.name = `${nameA} minus ${nameB}`;
+
+        this.sceneManager.addLoadedModel(resultMesh);
+        this.sceneTreeViewer.buildTree(this.sceneManager.getLoadedModels()); // 트리 업데이트
+
+        // 원본 모델을 숨기거나 제거할 수 있습니다 (선택 사항)
+        // modelA.visible = false;
+        // modelB.visible = false;
+        // 또는 this.sceneManager.removeLoadedModel(modelA.uuid); 등
+
+        console.log(`CSG Subtract 연산 성공: ${resultMesh.name}`);
+        // alert(`CSG 연산 완료: ${resultMesh.name}`);
+      } else {
+        alert("CSG 빼기 연산에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("CSG Subtract 연산 중 예외 발생:", error);
+      alert("CSG 연산 중 오류가 발생했습니다.");
+    } finally {
+      this.loadingIndicator.hide();
+    }
   }
 
   // 리사이즈 핸들러: SceneManager에 메인 영역 크기 전달

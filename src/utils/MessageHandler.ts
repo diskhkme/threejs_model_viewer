@@ -18,19 +18,25 @@ export type PostMessageData =
       type: "unloadModel";
       modelId: string;
     }
+  | {
+      type: "testCSG";
+    }
   | ModelLoadedMessage
   | ModelUnloadedMessage;
 
 export class MessageHandler {
   private onModelUrlReceived: (url: string, modelId: string) => void;
   private onModelUnload: (modelId: string) => void;
+  private onTestCSG?: () => void;
 
   constructor(
     onModelUrlReceived: (url: string, modelId: string) => void,
-    onModelUnload: (modelId: string) => void
+    onModelUnload: (modelId: string) => void,
+    onTestCSG?: () => void
   ) {
     this.onModelUrlReceived = onModelUrlReceived;
     this.onModelUnload = onModelUnload;
+    this.onTestCSG = onTestCSG;
     window.addEventListener("message", this.handleMessage.bind(this));
 
     // URL 파라미터 체크
@@ -42,6 +48,8 @@ export class MessageHandler {
       this.onModelUrlReceived(event.data.modelUrl, event.data.modelId);
     } else if (event.data?.type === "unloadModel") {
       this.onModelUnload(event.data.modelId);
+    } else if (event.data?.type === "testCSG" && this.onTestCSG) {
+      this.onTestCSG();
     }
   }
 
