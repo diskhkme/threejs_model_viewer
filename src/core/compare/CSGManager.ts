@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CSG } from '../libs/CSGMesh'; // 사용자가 수정한 경로를 따름
+import { CSG } from '../../libs/CSGMesh'; // 사용자가 수정한 경로를 따름
 
 export class CSGManager {
   constructor() {

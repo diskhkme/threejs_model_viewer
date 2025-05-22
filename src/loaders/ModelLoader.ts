@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
 export interface LoaderCallbacks {
   onLoad: (model: THREE.Object3D) => void;
@@ -55,6 +56,9 @@ export class ModelLoader {
     loader.load(
       url,
       (geometry) => {
+        // 거리 계산 등을 용이하게 하기 위해 강제로 indexed 형태로 변환
+        //geometry = BufferGeometryUtils.mergeVertices(geometry);
+
         const material = new THREE.MeshPhongMaterial({
           color: 0xaaaaaa,
           specular: 0x111111,
